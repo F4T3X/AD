@@ -838,6 +838,8 @@ coroutine.resume(coroutine.create(function()
                         if tostring(v["_stats"].player.Value) == game.Players.LocalPlayer.Name then
                             game:GetService("ReplicatedStorage").endpoints.client_to_server.use_active_attack:InvokeServer(v)
                         end
+                    else 
+                        return
                     end
                 end
             end
