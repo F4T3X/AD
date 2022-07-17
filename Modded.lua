@@ -839,7 +839,7 @@ coroutine.resume(coroutine.create(function()
                             game:GetService("ReplicatedStorage").endpoints.client_to_server.use_active_attack:InvokeServer(v)
                         end
                     else 
-                        return
+                        print(v.Name)
                     end
                 end
             end
