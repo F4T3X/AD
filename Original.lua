@@ -1,6 +1,9 @@
---Made by ArponAG | v3rmillion profile > https://v3rmillion.net/member.php?action=profile&uid=340148
+-- v1.4.2 --
+-- Hides users name automatically
+-- Fixed Auto upgrade
+-- Auto Ability might be broken (will fix later)
 
---v1.2
+
 ---// Loading Section \\---
 task.wait(2)
 repeat  task.wait() until game:IsLoaded()
@@ -30,7 +33,8 @@ local function webhook()
 		if url == "" then
 			return
 		end
-
+			
+    		XP = tostring(game:GetService("Players").LocalPlayer.PlayerGui.ResultsUI.Holder.GoldGemXP.XPReward.Main.Amount.Text)
 		gems = tostring(game:GetService("Players").LocalPlayer.PlayerGui.ResultsUI.Holder.GoldGemXP.GemReward.Main.Amount.Text)
 		cwaves = game:GetService("Players").LocalPlayer.PlayerGui.ResultsUI.Holder.Middle.WavesCompleted.Text
 		ctime = game:GetService("Players").LocalPlayer.PlayerGui.ResultsUI.Holder.Middle.Timer.Text
@@ -65,10 +69,22 @@ local function webhook()
 							["value"] = gems .. " <:gem:997123585476927558>",
 							["inline"] = true
 						}, {
-							["name"] = "Total Time:",
-							["value"] = tostring(ttime[2]) .. " ⏳",
-							["inline"] = true
-						}
+                            ["name"] = "Recieved XP:",
+                            ["value"] = XP .. " 🧪",
+                            ["inline"] = true
+                        }, {
+                            ["name"] = "Total Time:",
+                            ["value"] = tostring(ttime[2]) .. " ⏳",
+                            ["inline"] = true
+                        }, {
+                            ["name"] = "Current Gems:",
+                            ["value"] = tostring(game.Players.LocalPlayer._stats.gem_amount.Value).." <:gem:997123585476927558>",
+                            ["inline"] = true
+                        }, {
+                            ["name"] = "Current Level:",
+                            ["value"] = tostring(game.Players.LocalPlayer.PlayerGui.spawn_units.Lives.Main.Desc.Level.Text).. " ✨",
+                            ["inline"] = true
+                        }
 					}
 				}
 			}
@@ -83,6 +99,18 @@ local function webhook()
 		request(sex)
 	end)
 end
+
+
+getgenv().UnitCache = {}
+
+for _, Module in next, game:GetService("ReplicatedStorage"):WaitForChild("src"):WaitForChild("Data"):WaitForChild("Units"):GetDescendants() do
+    if Module:IsA("ModuleScript") and Module.Name ~= "UnitPresets" then
+        for UnitName, UnitStats in next, require(Module) do
+            getgenv().UnitCache[UnitName] = UnitStats
+        end
+    end
+end
+
 
 function sex()
     -- reads jsonfile
@@ -138,7 +166,7 @@ function sex()
     -- Uilib Shits
 
     local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/Forever4D/Lib/main/DiscordLib2.lua")()
-    local win = DiscordLib:Window("[🌊UPD 1] Anime Adventures v1.2".." - "..tostring(identifyexecutor()))
+    local win = DiscordLib:Window("[🌊UPD 1] Anime Adventures v1.4.1".." - "..tostring(identifyexecutor()))
     local serv = win:Server("Anime Adventures", "http://www.roblox.com/asset/?id=6031075938")
             
     if game.PlaceId == 8304191830 then
@@ -327,7 +355,7 @@ function sex()
             end
         end)
 
-        autofarmtab:Textbox("Select Wave Number for Auto Sell {Press Enter}", getgenv().sellatwave, false, function(t)
+        autofarmtab:Textbox("Select Wave Number for Auto Sell {Press Enter}", tostring(getgenv().sellatwave), false, function(t)
             getgenv().sellatwave = tonumber(t)
             updatejson()
         end)
@@ -559,12 +587,21 @@ function sex()
     end
 
     --------------------------------------------------
-    -------------------- Misc Tab --------------------
     --------------------------------------------------
 
-    if game.PlaceId == 8304191830 then
-        local misc = serv:Channel("Misc")
 
+    if game.PlaceId == 8304191830 then
+
+
+        --------------------------------------------------
+        -------------------- Auto Buy/Sell ---------------
+        getgenv().UnitSellTog = false
+        getgenv().autosummontickets = false
+        getgenv().autosummongem = false
+        getgenv().autosummongem10 = false
+
+
+        local misc = serv:Channel("Auto Buy/Sell")
         misc:Toggle("Auto Summon {Use Ticket 1}", getgenv().autosummontickets, function(bool)
             getgenv().autosummontickets = bool
             while getgenv().autosummontickets do
@@ -609,15 +646,23 @@ function sex()
             end
             updatejson()
         end)
+
+        local utts = misc:Dropdown("Select Rarity", {"Rare", "Epic"}, getgenv().UnitToSell, function(u)
+            getgenv().UnitToSell = u
+        end)
+
+        misc:Toggle("Auto Sell Units", getgenv().UnitSellTog, function(bool)
+            getgenv().UnitSellTog = bool
+        end)
+
+        
+
+
     end
 
     local credits = serv:Channel("Credits")
     credits:Label("Forever4D#0001")
     credits:Label("Arpon AG#6612")
-    credits:Button("Copy Discord Invite", function()
-        setclipboard("https://arponag.xyz/Discord")
-        DiscordLib:Notification("Notification", "Discord link copied to your clipboard", "Okay!")
-    end)
     credits:Label(" ")
 
 end
@@ -780,17 +825,45 @@ coroutine.resume(coroutine.create(function()
 	end)
 end))
 
+
+
+
+------// Auto Sell Units \\------
+coroutine.resume(coroutine.create(function()
+while task.wait() do
+    if getgenv().UnitSellTog then
+
+        for i, v in pairs(game:GetService("Players")[game.Players.LocalPlayer.Name].PlayerGui.collection.grid.List.Outer.UnitFrames:GetChildren()) do
+            if v.Name == "CollectionUnitFrame" then
+                repeat task.wait() until v:FindFirstChild("name")
+                for _, Info in next, getgenv().UnitCache do
+                    if Info.name == v.name.Text and Info.rarity == getgenv().UnitToSell then
+                        local args = {
+                            [1] = {
+                                [1] = tostring(v._uuid.Value)
+                            }
+                        }
+                        game:GetService("ReplicatedStorage").endpoints.client_to_server.sell_units:InvokeServer(unpack(args))
+                     end
+                end
+            end
+        end
+        
+    end
+end
+end))
+
 ------// Auto Upgrade \\------
 coroutine.resume(coroutine.create(function()
     while task.wait() do
         if getgenv().autoupgrade then
             if game.PlaceId ~= 8304191830 then
                 local max = 8
-                repeat task.wait() until game:GetService("Workspace"):FindFirstChild("_UNITS")
+                repeat task.wait() until game:GetService("Workspace"):WaitForChild("_UNITS")
                 for i, v in ipairs(game:GetService("Workspace")["_UNITS"]:GetChildren()) do
-                    repeat task.wait() until v:FindFirstChild("_stats")
+                    repeat task.wait() until v:WaitForChild("_stats")
                     if tostring(v["_stats"].player.Value) == game.Players.LocalPlayer.Name then
-                        repeat task.wait() until v:FindFirstChild("_stats"):FindFirstChild("upgrade")
+                        repeat task.wait() until v:WaitForChild("_stats"):WaitForChild("upgrade")
 
                         if v["_stats"].upgrade.Value == 0 or v["_stats"].upgrade.Value <= max then
                             game:GetService("ReplicatedStorage").endpoints.client_to_server.upgrade_unit_ingame:InvokeServer(v)
@@ -810,15 +883,15 @@ coroutine.resume(coroutine.create(function()
         if getgenv().autosell and tonumber(getgenv().sellatwave) <= _wave.Value then
             getgenv().disableatuofarm = true
             if game.PlaceId ~= 8304191830 then
-                repeat task.wait() until game:GetService("Workspace"):FindFirstChild("_UNITS")
+                repeat task.wait() until game:GetService("Workspace"):WaitForChild("_UNITS")
                 for i, v in ipairs(game:GetService("Workspace")["_UNITS"]:GetChildren()) do
                     repeat
                         task.wait()
-                    until v:FindFirstChild("_stats")
+                    until v:WaitForChild("_stats")
                     if tostring(v["_stats"].player.Value) == game.Players.LocalPlayer.Name then
                         repeat
                             task.wait()
-                        until v:FindFirstChild("_stats"):FindFirstChild("upgrade")
+                        until v:WaitForChild("_stats"):WaitForChild("upgrade")
             
                         game:GetService("ReplicatedStorage").endpoints.client_to_server.sell_unit_ingame:InvokeServer(v)
                     end
@@ -830,19 +903,23 @@ end))
 
 --//Auto Abilities--
 coroutine.resume(coroutine.create(function()
-    while task.wait() do
-        if getgenv().autoabilities then
-            if game.PlaceId ~= 8304191830 then
-                repeat task.wait() until game:GetService("Workspace"):FindFirstChild("_UNITS")
-                for i, v in ipairs(game:GetService("Workspace")["_UNITS"]:GetChildren()) do
-                    repeat task.wait() until v:FindFirstChild("_stats")
-                    if tostring(v["_stats"].player.Value) == game.Players.LocalPlayer.Name then
-                        game:GetService("ReplicatedStorage").endpoints.client_to_server.use_active_attack:InvokeServer(v)
+    pcall(function()
+        while task.wait() do
+            if getgenv().autoabilities then
+                if game.PlaceId ~= 8304191830 then
+                    repeat task.wait() until game:GetService("Workspace"):WaitForChild("_UNITS")
+                    for i, v in ipairs(game:GetService("Workspace")["_UNITS"]:GetChildren()) do
+                        repeat task.wait() until v:WaitForChild("_stats")			
+                       if v:FindFirstChild("_stats") then
+                            if tostring(v["_stats"].player.Value) == game.Players.LocalPlayer.Name then
+                                game:GetService("ReplicatedStorage").endpoints.client_to_server.use_active_attack:InvokeServer(v)
+                            end
+                        end
                     end
                 end
             end
         end
-    end
+    end)
 end))
 
 ------// Auto Start \\------
@@ -857,7 +934,7 @@ coroutine.resume(coroutine.create(function()
                     end
                 end
 
-                task.wait(0.1)
+                task.wait(0.3)
 
                 local args = {
                     [1] = getgenv().door
@@ -865,7 +942,7 @@ coroutine.resume(coroutine.create(function()
                 game:GetService("ReplicatedStorage").endpoints.client_to_server.request_join_lobby:InvokeServer(unpack(
                     args))
 
-                    task.wait(0.1)
+                    task.wait(0.3)
 
                 local args = {
                     [1] = getgenv().door, -- Lobby 
@@ -876,25 +953,37 @@ coroutine.resume(coroutine.create(function()
                 game:GetService("ReplicatedStorage").endpoints.client_to_server.request_lock_level:InvokeServer(unpack(
                     args))
 
-                    task.wait(0.1)
+                    task.wait(0.3)
 
                 local args = {
                     [1] = getgenv().door
                 }
 
-                game:GetService("ReplicatedStorage").endpoints.client_to_server.request_start_game:InvokeServer(unpack(
-                    args))
-
+                game:GetService("ReplicatedStorage").endpoints.client_to_server.request_start_game:InvokeServer(unpack(args))
+                task.wait()
             end
         end
     end
 end))
 
+--hide name
+task.spawn(function()  -- Hides name for yters (not sure if its Fe)
+    while task.wait() do
+        pcall(function()
+            if game.Players.LocalPlayer.Character.Head:FindFirstChild("_overhead") then
+               workspace[game.Players.LocalPlayer.Name].Head["_overhead"]:Destroy()
+            end
+        end)
+    end
+end)
+
 --anti afk
 pcall(function()
-	repeat wait() until game:IsLoaded()
-	for i,v in pairs(getconnections(game:GetService("Players").LocalPlayer.Idled)) do
-		v:Disable()
-	end
+    local vu = game:GetService("VirtualUser")
+    game:GetService("Players").LocalPlayer.Idled:connect(function()
+    vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    wait(1)
+    vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    end)
 end)
 ---------------------------------------------------------------------
